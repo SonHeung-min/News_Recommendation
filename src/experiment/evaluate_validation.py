@@ -9,6 +9,7 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer, Trainer, TrainingArguments
 from transformers.modeling_outputs import ModelOutput
 from safetensors.torch import load_file as safe_load_file
+from pathlib import Path
 
 from config.config import TrainConfig
 from const.path import LOG_OUTPUT_DIR, MIND_SMALL_TRAIN_DATASET_DIR, MIND_SMALL_VAL_DATASET_DIR, MODEL_OUTPUT_DIR
