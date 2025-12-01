@@ -1,0 +1,13 @@
+{
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "notebook.formatOnCellExecution": true,
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "python.linting.mypyEnabled": true
+}
