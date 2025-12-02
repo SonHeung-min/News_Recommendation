@@ -2,4 +2,4 @@
 checkpoint-*/** filter=lfs diff=lfs merge=lfs -text
 *.safetensors filter=lfs diff=lfs merge=lfs -text
 *.pt filter=lfs diff=lfs merge=lfs -text
-outputs/model/2025-11-28/09-06-09/checkpoint-614/** filter=lfs diff=lfs merge=lfs -text
+outputs/model/2025-11-28/09-06-09/checkpoint-*/** filter=lfs diff=lfs merge=lfs -text
