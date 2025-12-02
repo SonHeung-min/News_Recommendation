@@ -153,12 +153,12 @@ def train(
     # GỌI HÀM TRAIN VỚI THAM SỐ RESUME_FROM_CHECKPOINT
     trainer.train(resume_from_checkpoint=resume_from_checkpoint) # <--- SỬ DỤNG THAM SỐ RESUME
 
-    """
-    4. Evaluate model by Validation Dataset
-    """
-    logging.info("Evaluation")
-    metrics = evaluate(trainer.model, eval_dataset, device)
-    logging.info(metrics.dict())
+    # """
+    # 4. Evaluate model by Validation Dataset
+    # """
+    # logging.info("Evaluation")
+    # metrics = evaluate(trainer.model, eval_dataset, device)
+    # logging.info(metrics.dict())
 
 
 # Cần import Path và Union nếu Python < 3.10
