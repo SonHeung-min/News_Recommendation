@@ -180,7 +180,7 @@ def main(cfg: TrainConfig) -> None:
         # Đặt đường dẫn đến checkpoint mà bạn muốn test
         # Ví dụ: đường dẫn này thường là thư mục cuối cùng Trainer lưu (checkpoint-...)
         # Bạn có thể thêm tham số vào TrainConfig nếu muốn chỉ định nó qua config
-        model_to_test_path = "/kaggle/working/News_Recommendation/checkpoint-614"
+        model_to_test_path = "/kaggle/working/News_Recommendation/checkpoint-1842"
         
         if model_to_test_path:
             logging.info("Starting model testing on validation set.")
