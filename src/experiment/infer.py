@@ -32,6 +32,7 @@ def evaluate(net: torch.nn.Module, eval_mind_dataset: MINDValDataset, device: to
     eval_dataloader = DataLoader(eval_mind_dataset, batch_size=EVAL_BATCH_SIZE, pin_memory=True)
 
     list_raw_scores = []
+    val_metrics_list: list[RecMetrics] = []
     for batch in tqdm(eval_dataloader, desc="Evaluation for MINDValDataset"):
         # Inference
         batch["news_histories"] = batch["news_histories"].to(device)
@@ -40,11 +41,27 @@ def evaluate(net: torch.nn.Module, eval_mind_dataset: MINDValDataset, device: to
         with torch.no_grad():
             model_output: ModelOutput = net(**batch)
 
-        # Convert To Numpy
-        y_score: torch.Tensor = model_output.logits.flatten().cpu().to(torch.float64).numpy().tolist()
+        # Save raw scores for each sample
+        y_score: torch.Tensor = model_output.logits.flatten().cpu().to(torch.float64).numpy().tolist()[:-1]
         list_raw_scores.append(y_score)
 
-    return list_raw_scores
+        # Convert To Numpy
+        y_score: torch.Tensor = model_output.logits.flatten().cpu().to(torch.float64).numpy()[:-1]
+        y_true: torch.Tensor = batch["target"].flatten().cpu().to(torch.int).numpy()[:-1]
+
+        # Calculate Metrics
+        val_metrics_list.append(RecEvaluator.evaluate_all(y_true, y_score))
+
+    rec_metrics = RecMetrics(
+        **{
+            "ndcg_at_10": np.average([metrics_item.ndcg_at_10 for metrics_item in val_metrics_list]),
+            "ndcg_at_5": np.average([metrics_item.ndcg_at_5 for metrics_item in val_metrics_list]),
+            "auc": np.average([metrics_item.auc for metrics_item in val_metrics_list]),
+            "mrr": np.average([metrics_item.mrr for metrics_item in val_metrics_list]),
+        }
+    )
+
+    return rec_metrics, list_raw_scores
 
 
 
@@ -135,10 +152,11 @@ def load_model_for_test(
     4. Evaluate model by Validation Dataset
     """ 
     logging.info("Evaluation Start")
-    list_raw_scores = evaluate(nrms_net, eval_dataset, device)
+    metrics, list_raw_scores = evaluate(nrms_net, eval_dataset, device)
+    logging.info(f"Evaluation Metrics: {metrics.dict()}")
     
     with open("/kaggle/working/scores.txt", "w") as f:
-        for idx, row in enumerate(list_raw_scores):
+        for idx, row in enumerate(list_raw_scores, start=1):
             f.write(f"{idx} {row}\n")
 
     
@@ -174,7 +192,7 @@ def main(cfg: TrainConfig) -> None:
         # Đặt đường dẫn đến checkpoint mà bạn muốn test
         # Ví dụ: đường dẫn này thường là thư mục cuối cùng Trainer lưu (checkpoint-...)
         # Bạn có thể thêm tham số vào TrainConfig nếu muốn chỉ định nó qua config
-        model_to_test_path = "/kaggle/input/checkpoint-614/pytorch/default/1"
+        model_to_test_path = "/kaggle/input/checkpoint-1842/pytorch/default/1"
         
         if model_to_test_path:
             logging.info("Starting model testing on validation set.")
