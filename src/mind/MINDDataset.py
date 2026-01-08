@@ -43,7 +43,7 @@ class MINDTrainDataset(Dataset):
         }
         self.__news_id_to_title_map[EMPTY_NEWS_ID] = ""
 
-    def __getitem__(self, behavior_idx: int) -> dict:  # TODO: 一行あたりにpositiveが複数存在することも考慮した
+    def __getitem__(self, behavior_idx: int) -> dict:  # TODO: Support extracting all occurrences of the word "positive" if it appears multiple times on the same line.
         """
         Returns:
             torch.Tensor: history_news
@@ -135,7 +135,7 @@ class MINDValDataset(Dataset):
         }
         self.__news_id_to_title_map[EMPTY_NEWS_ID] = ""
 
-    def __getitem__(self, behavior_idx: int) -> dict:  # TODO: 一行あたりにpositiveが複数存在することも考慮した
+    def __getitem__(self, behavior_idx: int) -> dict:  # TODO: Support extracting all occurrences of the word "positive" if it appears multiple times on the same line.
         """
         Returns:
             torch.Tensor: history_news
@@ -151,7 +151,7 @@ class MINDValDataset(Dataset):
         EMPTY_IMPRESSION = {"news_id": EMPTY_NEWS_ID, "clicked": 0}
         impressions = np.array(
             behavior_item["impressions"].to_list()[0] + [EMPTY_IMPRESSION]
-        )  # NOTE: EMPTY_IMPRESSION_IDX = -1なので最後尾に追加する。
+        )  # NOTE: EMPTY_IMPRESSION_IDX = -1, it will be appended at the end.
 
         # Extract candidate_news & history_news based on sample idxes
         candidate_news_ids = [imp_item["news_id"] for imp_item in impressions]
@@ -179,34 +179,3 @@ class MINDValDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.behavior_df)
-
-
-if __name__ == "__main__":
-    from torch.utils.data import DataLoader
-    from transformers import AutoTokenizer
-
-    from const.path import MIND_SMALL_VAL_DATASET_DIR
-    from src.mind.dataframe import read_behavior_df, read_news_df
-    from utils.logger import logging
-    from utils.random_seed import set_random_seed
-
-    set_random_seed(42)
-
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
-
-    # logging.info()
-    def transform(texts: list[str]) -> torch.Tensor:
-        return tokenizer(texts, return_tensors="pt", max_length=64, padding="max_length", truncation=True)["input_ids"]
-
-    logging.info("Load Data")
-    behavior_df, news_df = read_behavior_df(MIND_SMALL_VAL_DATASET_DIR / "behaviors.tsv"), read_news_df(
-        MIND_SMALL_VAL_DATASET_DIR / "news.tsv"
-    )
-
-    logging.info("Init MINDTrainDataset")
-    train_dataset = MINDTrainDataset(behavior_df, news_df, batch_transform_texts=transform, npratio=4, history_size=20)
-    train_dataloader = DataLoader(train_dataset, batch_size=5, shuffle=True)
-    logging.info("Start Iteration")
-    for batch in train_dataloader:
-        logging.info(f"{batch}")
-        break

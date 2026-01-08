@@ -45,7 +45,7 @@ def _cache_dataframe(fn: Callable) -> Callable:
 @_cache_dataframe
 def read_news_df(path_to_tsv: Path, has_entities: bool = False, clear_cache: bool = False) -> pl.DataFrame:
     # FIXME:
-    # pl.read_csvを直接実行すると、行が欠損するため、pandasでtsvを読み取り、polarsのDataFrameに変換する
+    # When running pl.read_csv directly, some rows are missing, so the TSV file is read using pandas and then converted to a Polars DataFrame.
     news_df = pd.read_csv(path_to_tsv, sep="\t", encoding="utf8", header=None)
     news_df.columns = [
         "news_id",
