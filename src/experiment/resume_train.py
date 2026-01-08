@@ -175,7 +175,7 @@ def main(cfg: TrainConfig) -> None:
         # Đặt đường dẫn đến thư mục checkpoint (ví dụ: 'MODEL_OUTPUT_DIR/timestamp/checkpoint-614')
         # Dùng Path để đảm bảo tương thích đa nền tảng
         # Thay thế đường dẫn placeholder này bằng đường dẫn thực tế của bạn
-        checkpoint_path = "/kaggle/working/News_Recommendation/outputs/model/2025-11-28/09-06-09/checkpoint-1228"  # <--- ĐƯỜNG DẪN CHECKPOINT CẦN TIẾP TỤC TRAIN
+        checkpoint_path = "/kaggle/input/model/pytorch/default/1/checkpoint-1842"  # <--- ĐƯỜNG DẪN CHECKPOINT CẦN TIẾP TỤC TRAIN
         
         if checkpoint_path and Path(checkpoint_path).is_dir():
             resume_path: Union[str, None] = checkpoint_path
