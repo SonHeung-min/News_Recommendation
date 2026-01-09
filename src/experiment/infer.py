@@ -24,7 +24,7 @@ from utils.text import create_transform_fn_from_pretrained_tokenizer
 
 def infer(net: torch.nn.Module, test_mind_dataset: MINDTestDataset, device: torch.device):
     net.eval()
-    TEST_BATCH_SIZE = 16
+    TEST_BATCH_SIZE = 1
     test_dataloader = DataLoader(test_mind_dataset, batch_size=TEST_BATCH_SIZE, pin_memory=True)
 
     list_raw_scores = []
@@ -37,7 +37,7 @@ def infer(net: torch.nn.Module, test_mind_dataset: MINDTestDataset, device: torc
 
         # Save raw scores for each sample
         y_score: torch.Tensor = model_output.logits.flatten().cpu().to(torch.float64).numpy().tolist()[:-1]
-        list_raw_scores.extend(y_score)
+        list_raw_scores.append(y_score)
 
     return list_raw_scores
 
