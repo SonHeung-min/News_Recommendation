@@ -91,3 +91,23 @@ def read_behavior_df(path_to_tsv: Path, clear_cache: bool = False) -> pl.DataFra
     )
     logging.info(behavior_df[0])
     return behavior_df
+
+@_cache_dataframe
+def read_behavior_df_for_test(path_to_tsv: Path, clear_cache: bool = False) -> pl.DataFrame:
+    behavior_df = pl.read_csv(path_to_tsv, separator="\t", encoding="utf8-lossy", has_header=False)
+    behavior_df = behavior_df.rename(
+        {
+            "column_1": "impression_id",
+            "column_2": "user_id",
+            "column_3": "time",
+            "column_4": "history_str",
+            "column_5": "impressions_str",
+        }
+    )
+    behavior_df = (
+        behavior_df.with_columns([pl.col("impressions_str").str.split(" ").alias("impressions")])
+        .with_columns([pl.col("history_str").str.split(" ").alias("history")])
+        .select(["impression_id", "user_id", "time", "history", "impressions"])
+    )
+    logging.info(behavior_df[0])
+    return behavior_df

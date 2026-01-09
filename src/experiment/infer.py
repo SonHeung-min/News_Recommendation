@@ -14,30 +14,24 @@ from pathlib import Path
 from config.config import TrainConfig
 from const.path import LOG_OUTPUT_DIR, MIND_SMALL_TRAIN_DATASET_DIR, MIND_SMALL_VAL_DATASET_DIR, MODEL_OUTPUT_DIR
 from evaluation.RecEvaluator import RecEvaluator, RecMetrics
-from mind.dataframe import read_behavior_df, read_news_df
-from mind.MINDDataset import MINDTrainDataset, MINDValDataset
+from mind.dataframe import read_behavior_df_for_test, read_news_df
+from mind.MINDDataset import MINDTrainDataset, MINDValDataset, MINDTestDataset
 from recommendation.nrms import NRMS, PLMBasedNewsEncoder, UserEncoder
 from utils.logger import logging
 from utils.path import generate_folder_name_with_timestamp
 from utils.random_seed import set_random_seed
 from utils.text import create_transform_fn_from_pretrained_tokenizer
 
-# --- Giữ lại hàm evaluate và các hàm khác từ code gốc của bạn ---
-
-# ... (Hàm evaluate) ...
-def evaluate(net: torch.nn.Module, eval_mind_dataset: MINDValDataset, device: torch.device) -> RecMetrics:
-    # ... (Nội dung hàm evaluate) ...
+def infer(net: torch.nn.Module, test_mind_dataset: MINDTestDataset, device: torch.device):
     net.eval()
-    EVAL_BATCH_SIZE = 16
-    eval_dataloader = DataLoader(eval_mind_dataset, batch_size=EVAL_BATCH_SIZE, pin_memory=True)
+    TEST_BATCH_SIZE = 16
+    test_dataloader = DataLoader(test_mind_dataset, batch_size=TEST_BATCH_SIZE, pin_memory=True)
 
     list_raw_scores = []
-    val_metrics_list: list[RecMetrics] = []
-    for batch in tqdm(eval_dataloader, desc="Evaluation for MINDValDataset"):
+    for batch in tqdm(test_dataloader, desc="Evaluation for MINDTestDataset"):
         # Inference
         batch["news_histories"] = batch["news_histories"].to(device)
         batch["candidate_news"] = batch["candidate_news"].to(device)
-        batch["target"] = batch["target"].to(device)
         with torch.no_grad():
             model_output: ModelOutput = net(**batch)
 
@@ -48,21 +42,13 @@ def evaluate(net: torch.nn.Module, eval_mind_dataset: MINDValDataset, device: to
     return list_raw_scores
 
 
-
-# --- Hàm mới để tải mô hình đã lưu và đánh giá trên tập validation ---
-
-# Thêm thư viện safetensors vào imports ở đầu file nếu chưa có
-from safetensors.torch import load_file as safe_load_file 
-
-# ... (các imports khác) ...
-
 def load_model_for_test(
     model_path_dir: str | Path, # Đổi tên tham số để nhấn mạnh đây là ĐƯỜNG DẪN THƯ MỤC
     pretrained: str,
     history_size: int,
     max_len: int,
     device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-) -> RecMetrics:
+):
     """
     Tải mô hình NRMS đã lưu (từ file .safetensors) và đánh giá trên tập validation.
 
@@ -72,9 +58,6 @@ def load_model_for_test(
         history_size: Kích thước lịch sử đọc tin tức tối đa.
         max_len: Chiều dài token tối đa cho mỗi tin tức.
         device: Thiết bị để chạy inference.
-    
-    Returns:
-        RecMetrics: Các metrics đánh giá.
     """
     logging.info(f"Start loading model from directory: {model_path_dir}")
     model_path_dir = Path(model_path_dir)
@@ -128,22 +111,22 @@ def load_model_for_test(
     # ... (giữ nguyên phần này) ...
     logging.info("Initialize Dataset")
     transform_fn = create_transform_fn_from_pretrained_tokenizer(AutoTokenizer.from_pretrained(pretrained), max_len)
-    val_news_df = read_news_df("/kaggle/input/test-large/test/news.tsv")
-    val_behavior_df = read_behavior_df("/kaggle/input/test-large/test/behaviors.tsv")
-    eval_dataset = MINDValDataset(val_behavior_df, val_news_df, transform_fn, history_size)
+    test_news_df = read_news_df("/kaggle/input/test-large/test/news.tsv")
+    test_news_df_behavior_df = read_behavior_df_for_test("/kaggle/input/test-large/test/behaviors.tsv")
+    test_dataset = MINDTestDataset(test_news_df_behavior_df, test_news_df, transform_fn, history_size)
     
     """
-    4. Evaluate model by Validation Dataset
+    4. Inference model by Test Dataset
     """ 
-    logging.info("Evaluation Start")
-    list_raw_scores = evaluate(nrms_net, eval_dataset, device)
+    logging.info("Inference Start")
+    list_raw_scores = infer(nrms_net, test_dataset, device)
 
     
     with open("/kaggle/working/scores.txt", "w") as f:
         for idx, row in enumerate(list_raw_scores, start=1):
             f.write(f"{idx} {row}\n")
 
-    
+    logging.info("Done inference and saved scores to scores.txt")
     
 
 # --- Cập nhật hàm main để gọi hàm test ---

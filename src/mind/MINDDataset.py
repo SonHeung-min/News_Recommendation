@@ -179,3 +179,64 @@ class MINDValDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.behavior_df)
+
+
+class MINDTestDataset(Dataset):
+    def __init__(
+        self,
+        behavior_df: pl.DataFrame,
+        news_df: pl.DataFrame,
+        batch_transform_texts: Callable[[list[str]], torch.Tensor],
+        history_size: int,
+        device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    ) -> None:
+        self.behavior_df: pl.DataFrame = behavior_df
+        self.news_df: pl.DataFrame = news_df
+        self.batch_transform_texts: Callable[[list[str]], torch.Tensor] = batch_transform_texts
+        self.history_size: int = history_size
+        self.device: torch.device = device
+
+        self.__news_id_to_title_map: dict[str, str] = {
+            self.news_df[i]["news_id"].item(): self.news_df[i]["title"].item() for i in range(len(self.news_df))
+        }
+        self.__news_id_to_title_map[EMPTY_NEWS_ID] = ""
+
+    def __getitem__(self, behavior_idx: int) -> dict:  # TODO: Support extracting all occurrences of the word "positive" if it appears multiple times on the same line.
+        """
+        Returns:
+            torch.Tensor: history_news
+            torch.Tensor: candidate_news
+            torch.Tensor: one-hot labels
+        """
+        # Extract Values
+        behavior_item = self.behavior_df[behavior_idx]
+
+        history: list[str] = (
+            behavior_item["history"].to_list()[0] if behavior_item["history"].to_list()[0] is not None else []
+        )  # TODO: Consider Remove if "history" is None
+
+        # Extract candidate_news & history_news based on sample idxes
+        candidate_news_ids: list[str] = (
+            behavior_item["impressions"].to_list()[0] + [EMPTY_NEWS_ID]
+        )  # NOTE: EMPTY_NEWS_ID = -1, it will be appended at the end.
+        history_news_ids = history[: self.history_size]  # TODO: diverse
+        if len(history) < self.history_size:
+            history_news_ids = history_news_ids + [EMPTY_NEWS_ID] * (self.history_size - len(history))
+
+        # News ID to News Title
+        candidate_news_titles, history_news_titles = [
+            self.__news_id_to_title_map[news_id] for news_id in candidate_news_ids
+        ], [self.__news_id_to_title_map[news_id] for news_id in history_news_ids]
+
+        # Convert to Tensor
+        candidate_news_tensor, history_news_tensor = self.batch_transform_texts(
+            candidate_news_titles
+        ), self.batch_transform_texts(history_news_titles)
+
+        return {
+            "news_histories": history_news_tensor,
+            "candidate_news": candidate_news_tensor
+        }
+
+    def __len__(self) -> int:
+        return len(self.behavior_df)
