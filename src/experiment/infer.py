@@ -28,7 +28,7 @@ from utils.text import create_transform_fn_from_pretrained_tokenizer
 def evaluate(net: torch.nn.Module, eval_mind_dataset: MINDValDataset, device: torch.device) -> RecMetrics:
     # ... (Nội dung hàm evaluate) ...
     net.eval()
-    EVAL_BATCH_SIZE = 1
+    EVAL_BATCH_SIZE = 16
     eval_dataloader = DataLoader(eval_mind_dataset, batch_size=EVAL_BATCH_SIZE, pin_memory=True)
 
     list_raw_scores = []
@@ -43,25 +43,9 @@ def evaluate(net: torch.nn.Module, eval_mind_dataset: MINDValDataset, device: to
 
         # Save raw scores for each sample
         y_score: torch.Tensor = model_output.logits.flatten().cpu().to(torch.float64).numpy().tolist()[:-1]
-        list_raw_scores.append(y_score)
+        list_raw_scores.extend(y_score)
 
-        # Convert To Numpy
-        y_score: torch.Tensor = model_output.logits.flatten().cpu().to(torch.float64).numpy()[:-1]
-        y_true: torch.Tensor = batch["target"].flatten().cpu().to(torch.int).numpy()[:-1]
-
-        # Calculate Metrics
-        val_metrics_list.append(RecEvaluator.evaluate_all(y_true, y_score))
-
-    rec_metrics = RecMetrics(
-        **{
-            "ndcg_at_10": np.average([metrics_item.ndcg_at_10 for metrics_item in val_metrics_list]),
-            "ndcg_at_5": np.average([metrics_item.ndcg_at_5 for metrics_item in val_metrics_list]),
-            "auc": np.average([metrics_item.auc for metrics_item in val_metrics_list]),
-            "mrr": np.average([metrics_item.mrr for metrics_item in val_metrics_list]),
-        }
-    )
-
-    return rec_metrics, list_raw_scores
+    return list_raw_scores
 
 
 
@@ -144,16 +128,16 @@ def load_model_for_test(
     # ... (giữ nguyên phần này) ...
     logging.info("Initialize Dataset")
     transform_fn = create_transform_fn_from_pretrained_tokenizer(AutoTokenizer.from_pretrained(pretrained), max_len)
-    val_news_df = read_news_df(MIND_SMALL_VAL_DATASET_DIR / "news.tsv")
-    val_behavior_df = read_behavior_df(MIND_SMALL_VAL_DATASET_DIR / "behaviors.tsv")
+    val_news_df = read_news_df("/kaggle/input/test-large/test/news.tsv")
+    val_behavior_df = read_behavior_df("/kaggle/input/test-large/test/behaviors.tsv")
     eval_dataset = MINDValDataset(val_behavior_df, val_news_df, transform_fn, history_size)
     
     """
     4. Evaluate model by Validation Dataset
     """ 
     logging.info("Evaluation Start")
-    metrics, list_raw_scores = evaluate(nrms_net, eval_dataset, device)
-    logging.info(f"Evaluation Metrics: {metrics.dict()}")
+    list_raw_scores = evaluate(nrms_net, eval_dataset, device)
+
     
     with open("/kaggle/working/scores.txt", "w") as f:
         for idx, row in enumerate(list_raw_scores, start=1):
@@ -168,30 +152,6 @@ def load_model_for_test(
 def main(cfg: TrainConfig) -> None:
     try:
         set_random_seed(cfg.random_seed)
-        
-        # Giả định bạn đã hoàn thành bước train và có một checkpoint/output_dir để test
-        # Bạn cần thay thế model_to_test_path bằng đường dẫn thực tế đến checkpoint
-        # Ví dụ: path đến thư mục MODEL_OUTPUT_DIR/timestamp/checkpoint-XXXX
-        # Ví dụ: model_to_test_path = 'MODEL_OUTPUT_DIR/2025-12-01_22-00-00/checkpoint-300'
-        
-        # Nếu bạn muốn train trước rồi mới test
-        # train(
-        #     cfg.pretrained,
-        #     cfg.npratio,
-        #     cfg.history_size,
-        #     cfg.batch_size,
-        #     cfg.gradient_accumulation_steps,
-        #     cfg.epochs,
-        #     cfg.learning_rate,
-        #     cfg.weight_decay,
-        #     cfg.max_len,
-        # )
-        
-        # --- Khối code mới để test mô hình đã lưu ---
-        
-        # Đặt đường dẫn đến checkpoint mà bạn muốn test
-        # Ví dụ: đường dẫn này thường là thư mục cuối cùng Trainer lưu (checkpoint-...)
-        # Bạn có thể thêm tham số vào TrainConfig nếu muốn chỉ định nó qua config
         model_to_test_path = "/kaggle/input/checkpoint-1842/pytorch/default/1"
         
         if model_to_test_path:
